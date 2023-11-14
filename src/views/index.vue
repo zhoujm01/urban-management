@@ -111,7 +111,7 @@
                   :style="{ color:state.subSelectedKey==item.key?'#00FAB5':'#fff'}"-->
                   <div
                     style="text-align: left;width: 380px;margin-left:10px"
-                    @click="clickContentItem(item)"
+                    @click="clickContentItem(item,index)"
                   >
                     <div
                       :style="{ color:state.contentSelectedId==item.id?'#00FAB5':'#fff'}"
@@ -273,10 +273,12 @@ import { toGeoJSON } from "kml-geojson";
 // import * as kgUtil from "./conver/geoJSONToKml";
 // import {toGeoJSON,tokml} from './conver/geoJSONToKml'
 
-import kml2 from "/line/川沙机场/川沙航线/200米演示.kmz";
+// import kml2 from "/line/川沙机场/川沙航线/200米演示.kmz";
 
 import pointIcon from "../assets/svgs/地图上的标记1.svg";
 import { app } from "../main";
+
+// import file1 from "/dist/line/大团机场/大团航线/*.kmz";
 
 import { v4 as uuidV4 } from "uuid";
 
@@ -288,6 +290,8 @@ export default {
 
     const appSettings = app.config.globalProperties.$appSettings;
     // const baseUrl = ref(appSettings.restUrl + "uploadimg");
+
+    const searchValue = ref();
 
     var mapOptions = {
       basemaps: [
@@ -1189,6 +1193,7 @@ export default {
     let allLineList = [];
     const lineCount = ref(0);
     const lineFileCount = ref(0);
+    // 点击机场显示监管对象及航线
     const getPlaneLineList = currentItem => {
       graphicLayer1.clear();
       graphicLayer2.clear();
@@ -1267,41 +1272,35 @@ export default {
       // 航线  "/public/line/川沙机场/川沙航线/*.kmz"
       let modulesFiles;
       switch (currentItem.id) {
+        // /public  /dist
         case 1:
-          modulesFiles = import.meta.glob("/public/line/泥城机场/泥城/*.kmz");
+          // "/dist/line/泥城机场/泥城/*.kmz"
+          modulesFiles = import.meta.glob("/dist/line/泥城机场/泥城/*.kmz");
           break;
         case 2:
           modulesFiles = import.meta.glob(
-            "/public/line/张江机场/张江航线/*.kmz"
+            "/dist/line/张江机场/张江航线/*.kmz"
           );
           break;
         case 3:
-          modulesFiles = import.meta.glob(
-            "/public/line/书院机场/书院航线/*.kmz"
-          );
+          modulesFiles = import.meta.glob("/dist/line/书院机场/书院航线/*.kmz");
           break;
         case 4:
-          modulesFiles = import.meta.glob(
-            "/public/line/川沙机场/川沙航线/*.kmz"
-          );
+          modulesFiles = import.meta.glob("/dist/line/川沙机场/川沙航线/*.kmz");
           break;
         case 5:
-          modulesFiles = import.meta.glob(
-            "/public/line/大团机场/大团航线/*.kmz"
-          );
+          modulesFiles = import.meta.glob("/dist/line/大团机场/大团航线/*.kmz");
           break;
         case 6:
-          modulesFiles = import.meta.glob("/public/line/六灶机场/六灶/*.kmz");
+          modulesFiles = import.meta.glob("/dist/line/六灶机场/六灶/*.kmz");
           break;
         case 7:
-          modulesFiles = import.meta.glob(
-            "/public/line/金桥机场/金桥航线/*.kmz"
-          );
+          modulesFiles = import.meta.glob("/dist/line/金桥机场/金桥航线/*.kmz");
           break;
       }
 
       let modules = [];
-      // console.log("modulesFiles", modulesFiles);
+      console.log("modulesFiles", modulesFiles);
       for (const path in modulesFiles) {
         modules = [].concat(modules, modulesFiles[path].name);
       }
@@ -1310,21 +1309,20 @@ export default {
       if (modules != null && modules.length > 0) {
         lineFileCount.value = modules.length;
         modules.forEach(item => {
-          let kmlfile = item.toString().substring(7);
-          let nameList = kmlfile.split("/");
+          let nameList = item.toString().split("/");
           let name = nameList[nameList.length - 1].split(".")[0];
+          // let kmlfile = new URL(item.toString().substring(5), import.meta.url)
+          //   .href;
+
+          // public:8 dist:6
+          let kmlfile =appSettings.restUrl+item.toString().substring(nameList[1].length+1);
 
           // console.log("kmlfile", kmlfile);
           var geocachePromise = Cesium.KmlDataSource.load(kmlfile).then(
             function(dataSource) {
-              // map.dataSources.add(dataSource);
               // console.log("dataSource", dataSource);
               // 获取实体数组
               var geocacheEntities = dataSource.entities.values;
-              // if (name == "1010247") {
-              //   console.log("1010247", name);
-              //   console.log("geocacheEntities", geocacheEntities);
-              // }
 
               let lineList = [];
               for (var i = 0; i < geocacheEntities.length; i++) {
@@ -1371,34 +1369,6 @@ export default {
       console.log("allLineList", allLineList);
       if (allLineList != null && allLineList.length > 0) {
         allLineList.forEach(item => {
-          // const graphic = new mars3d.graphic.PolylinePrimitive({
-          //   positions: mars3d.PolyUtil.interLine(item.lineList, {
-          //     minDistance: "auto"
-          //   }), // 切分坐标，使流动材质均匀些
-          //   style: {
-          //     width: 30,
-          //     // material: lineMaterial
-          //     // 使用自定义材质
-          //     materialType: LineSpriteType,
-          //     materialOptions: {
-          //       image: "/picture/光点4.png",
-          //       speed: 5
-          //     }
-          //   },
-          //   attr: { remark: item.name },
-          //   popup: item.name
-          // });
-
-          // const graphic = new mars3d.graphic.CorridorEntity({
-          //   positions: lineList,
-          //   style: {
-          //     width: 30,
-          //     color: "#ffffff"
-          //   },
-          //   attr: { remark: "测试" },
-          //   popup: "测试"
-          // });
-
           const graphic = new mars3d.graphic.PolylineEntity({
             positions: item.lineList,
             style: {
@@ -1577,61 +1547,55 @@ export default {
           };
         } else if (filelast == ".kmz") {
           console.log("kmz:", file);
-          // const reader = new FileReader();
-          // let rename = false; //是否重名
-          // reader.readAsText(file, "utf-8");
-          // reader.onload = async () => {
-          // const anystr: any = reader.result;
-          // console.log(anystr);
-          var geocachePromise = Cesium.KmlDataSource.load(kml2).then(function(
-            dataSource
-          ) {
-            map.dataSources.add(dataSource);
-            console.log("dataSource", dataSource);
-            // 获取实体数组
-            var geocacheEntities = dataSource.entities.values;
-            console.log("geocacheEntities", geocacheEntities);
-            let lineList = [];
-            for (var i = 0; i < geocacheEntities.length; i++) {
-              var entity = geocacheEntities[i];
-              let position = entity.position;
-              if (position != undefined) {
-                var cartographicPosition = Cesium.Cartographic.fromCartesian(
-                  entity.position.getValue(Cesium.JulianDate.now())
-                );
-                var latitude = Cesium.Math.toDegrees(
-                  cartographicPosition.latitude
-                );
-                var longitude = Cesium.Math.toDegrees(
-                  cartographicPosition.longitude
-                );
-                const thisPoint = Cesium.Cartesian3.fromDegrees(
-                  longitude,
-                  latitude,
-                  1
-                );
-                lineList.push(thisPoint);
-              }
-            }
-            console.log("lineList", lineList);
-            const graphic = new mars3d.graphic.PolylinePrimitive({
-              positions: mars3d.PolyUtil.interLine(lineList, {
-                minDistance: "auto"
-              }), // 切分坐标，使流动材质均匀些
-              style: {
-                width: 30,
-                // material: lineMaterial
-                // 使用自定义材质
-                materialType: LineSpriteType,
-                materialOptions: {
-                  image: "/picture/光点4.png",
-                  speed: 5
-                }
-              }
-            });
-            graphicLayer.addGraphic(graphic);
-          });
-          // };
+
+          // var geocachePromise = Cesium.KmlDataSource.load(kml2).then(function(
+          //   dataSource
+          // ) {
+          //   map.dataSources.add(dataSource);
+          //   console.log("dataSource", dataSource);
+          //   // 获取实体数组
+          //   var geocacheEntities = dataSource.entities.values;
+          //   console.log("geocacheEntities", geocacheEntities);
+          //   let lineList = [];
+          //   for (var i = 0; i < geocacheEntities.length; i++) {
+          //     var entity = geocacheEntities[i];
+          //     let position = entity.position;
+          //     if (position != undefined) {
+          //       var cartographicPosition = Cesium.Cartographic.fromCartesian(
+          //         entity.position.getValue(Cesium.JulianDate.now())
+          //       );
+          //       var latitude = Cesium.Math.toDegrees(
+          //         cartographicPosition.latitude
+          //       );
+          //       var longitude = Cesium.Math.toDegrees(
+          //         cartographicPosition.longitude
+          //       );
+          //       const thisPoint = Cesium.Cartesian3.fromDegrees(
+          //         longitude,
+          //         latitude,
+          //         1
+          //       );
+          //       lineList.push(thisPoint);
+          //     }
+          //   }
+          //   console.log("lineList", lineList);
+          //   const graphic = new mars3d.graphic.PolylinePrimitive({
+          //     positions: mars3d.PolyUtil.interLine(lineList, {
+          //       minDistance: "auto"
+          //     }), // 切分坐标，使流动材质均匀些
+          //     style: {
+          //       width: 30,
+          //       // material: lineMaterial
+          //       // 使用自定义材质
+          //       materialType: LineSpriteType,
+          //       materialOptions: {
+          //         image: "/picture/光点4.png",
+          //         speed: 5
+          //       }
+          //     }
+          //   });
+          //   graphicLayer.addGraphic(graphic);
+          // });
         }
       }
     };
@@ -1674,7 +1638,7 @@ export default {
       // titleText,
       state,
       menuList,
-      // searchValue,
+      searchValue,
       selectMenuColor,
       clickMenu,
       toggleCollapsed,
