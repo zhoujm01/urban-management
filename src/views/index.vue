@@ -6,6 +6,15 @@
         <!-- 标题栏 -->
         <div class="titleArea">
           <div style="position: absolute;top:0px;left:0px">
+            <!-- <a-upload
+              name="file"
+              :customRequest="customUpload"
+              v-model:file-list="fileList"
+              :showUploadList="false"
+              accept=".kml, .json, .kmz"
+            >
+              <div style="color:rgb(0, 190, 201);margin-top:5px">添加</div>
+            </a-upload>-->
             <!-- <div>时间</div> -->
             <div>
               <img src="/picture/用户.png" style="height: 25px;position:absolute;top:40px;left:0px;" />
@@ -83,9 +92,17 @@
           <!-- 中部 -->
           <div>
             <!-- 三级（弹窗） -->
-            <div class="elseArea" v-if="state.subSelectedKey=='1-2'">
+            <div
+              class="elseArea"
+              v-if="state.subSelectedKey=='1-2'"
+              :style="{left:state.collapsed?'120px':'70px'}"
+            >
+              <img
+                style="width: 410px;height: 363px;position:absolute;top:0px;left:0px;z-index:2;"
+                src="/picture/在飞弹窗.png"
+              />
               <!-- :style="subMenuAreaStyle()" -->
-              <div style="margin-top:20px;">
+              <div style="margin-top:30px;margin-left:10px;z-index:2;">
                 <template
                   v-for="(item,index) in menuList[state.selectedIndex].children[state.subSelectedIndex].children"
                 >
@@ -93,7 +110,7 @@
                   @click="clickSubItem(item,index)"
                   :style="{ color:state.subSelectedKey==item.key?'#00FAB5':'#fff'}"-->
                   <div
-                    style="text-align: left;width: 340px;margin-left:10px"
+                    style="text-align: left;width: 380px;margin-left:10px"
                     @click="clickContentItem(item)"
                   >
                     <div
@@ -175,16 +192,52 @@
         </div>
         <!-- 底部 -->
         <div class="bottomArea">
-          <div v-for="item in dtdata" :key="item.id">
-            <div>{{ item.text }}</div>
-          </div>
-          <!-- <TextScroll
+          <!-- 档logo -->
+          <div
+            style="position: absolute;left:0px;bottom:0px;height:20px;width:100px;background:#000"
+          ></div>
+          <!-- 底部左侧 地图样式切换 -->
+          <!-- <div style="position: absolute;left:0px;bottom:30px">
+            <div
+              v-if="state.mapStyleFlag==false"
+              @click="()=>{state.mapStyleFlag=true}"
+              class="showMapButton"
+            >
+              <img src="/picture/箭头3.png" style="width: 15px;height:15px;margin:0px 8px" />
+            </div>
+            <div v-else class="mapStyleArea">
+              <div class="checkArea">
+                <div>
+                  <div class="checkItemImg">
+                    <img src="/picture/地图.png" style="width:80px;height:65px;border-radius: 10px;" />
+                  </div>
+                  <div
+                    style="position: relative;left:10px;bottom:13px;z-index:4;background:rgba(0, 0, 0,0.5);border-radius:0px 0px 10px 10px;"
+                  >
+                    <a-checkbox style="border-radius: 50px;">Checkbox</a-checkbox>默认
+                  </div>
+                </div>
+              </div>
+              <div class="hiddenButton" @click="()=>{state.mapStyleFlag=false}">
+                <img src="/picture/箭头3收起.png" style="width: 15px;height:15px;" />
+              </div>
+            </div>
+          </div>-->
+          <!-- 底部滚动区 -->
+          <div class="bottomTextArea">
+            <div v-for="item in dtdata" :key="item.id">
+              <div>{{ item.text }}</div>
+            </div>
+            <!-- <TextScroll
             :text="state.text"
             width="100%"
             :amount="4"
             background-color="#FFF"
             :height="50"
-          /> -->
+            />-->
+
+            <!-- 切换地图样式 -->
+          </div>
         </div>
       </div>
     </div>
@@ -204,18 +257,37 @@ import icon6 from "../assets/svgs/数据.svg";
 import icon7 from "../assets/svgs/系统.svg";
 import icon8 from "../assets/svgs/全屏.svg";
 
+import planePointIcon from "../assets/svgs/icon_机场.svg";
+
 import TextScroll from "../components/TextScroll.vue";
 
 import * as mars3d from "mars3d";
 import "mars3d/dist/mars3d.css";
 import "mars3d-cesium/Build/Cesium/Widgets/widgets.css";
 import * as Cesium from "mars3d-cesium";
+import { planepoint } from "@turf/turf";
+
+import { message } from "ant-design-vue";
+
+import { toGeoJSON } from "kml-geojson";
+// import * as kgUtil from "./conver/geoJSONToKml";
+// import {toGeoJSON,tokml} from './conver/geoJSONToKml'
+
+import kml2 from "/line/川沙机场/川沙航线/200米演示.kmz";
+
+import pointIcon from "../assets/svgs/地图上的标记1.svg";
+import { app } from "../main";
+
+import { v4 as uuidV4 } from "uuid";
 
 export default {
   components: { TextScroll },
 
   setup() {
     const router = useRouter();
+
+    const appSettings = app.config.globalProperties.$appSettings;
+    // const baseUrl = ref(appSettings.restUrl + "uploadimg");
 
     var mapOptions = {
       basemaps: [
@@ -239,6 +311,8 @@ export default {
 
     var map = null;
 
+    const fileList = ref([]);
+
     const menuList = ref([
       {
         key: "1",
@@ -249,7 +323,7 @@ export default {
           {
             key: "1-1",
             label: "机场总量",
-            title: "机场总量：10个",
+            title: "机场总量：15个",
             children: []
           },
           {
@@ -259,38 +333,56 @@ export default {
             children: [
               {
                 id: 1,
-                name: "1.金桥机场",
-                address: "5G未来中心(浦东新区金海路1347号三号楼)"
+                name: "1.泥城机场",
+                // kml文件地址 http://localhost:5173/line/川沙机场/川沙.kml
+                fileAddress: appSettings.restUrl + "line/泥城机场/泥城.kml",
+                // kmz航线文件地址 /public/line/川沙机场/川沙航线/*.kmz
+                lineAddress: "/public/line/泥城机场/泥城/*.kmz",
+                address: "上海市浦东新区泥城镇秋山路1775弄25号2号楼12层楼顶"
               },
               {
                 id: 2,
-                name: "2.川沙机场",
-                address: "川沙大厦(浦东新区川沙路5077号)"
+                name: "2.张江机场",
+                fileAddress: appSettings.restUrl + "line/张江机场/张江.kml",
+                lineAddress: "/public/line/张江机场/张江航线/*.kmz",
+                address: "上海市浦东新区金科路3057号汇智国际商业广场5层楼顶"
               },
               {
                 id: 3,
-                name: "3.张江机场",
-                address: "汇智商业广场(浦东新区金科路3057号)"
+                name: "3.书院机场",
+                fileAddress: appSettings.restUrl + "line/书院机场/书院.kml",
+                lineAddress: "/public/line/书院机场/书院航线/*.kmz",
+                address: "上海市浦东新区老芦公路895号禹洲城市广场2号楼11层楼顶"
               },
               {
                 id: 4,
-                name: "4.花木机场",
-                address: "浦东新区城市管理行政执法局(浦东新区樱花路298弄)"
+                name: "4.川沙机场",
+                fileAddress: appSettings.restUrl + "line/川沙机场/川沙.kml",
+                lineAddress: "/public/line/川沙机场/川沙航线/*.kmz",
+                address: "上海市浦东新区川沙路5007号顶楼水塔塔顶"
               },
               {
                 id: 5,
-                name: "5.书院机场",
-                address: "(禹州城市广场)老芦公路895号2号楼"
+                name: "5.大团机场",
+                fileAddress: appSettings.restUrl + "line/大团机场/大团.kml",
+                lineAddress: "/public/line/大团机场/大团航线/*.kmz",
+                address: "上海市浦东新区大团镇汇技路209号3号楼9层楼顶"
               },
               {
                 id: 6,
-                name: "6.大团机场",
-                address: "上海市浦东新区汇技路209号3号楼9层楼顶"
+                name: "6.六灶机场",
+                fileAddress: appSettings.restUrl + "line/六灶机场/六灶.kml",
+                lineAddress: "/public/line/六灶机场/六灶/*.kmz",
+                address: "上海市浦东新区川沙新镇南六公路1188号B楼6楼楼顶"
               },
               {
                 id: 7,
-                name: "7.新场机场",
-                address: "上海市浦东新区新场镇石笋街8号"
+                name: "7.金桥机场",
+                fileAddress:
+                  appSettings.restUrl +
+                  "line/金桥机场/KML导出_20231110093722.kml",
+                lineAddress: "/public/line/金桥机场/金桥航线/*.kmz",
+                address: "上海市浦东新区金海路1357号3号楼9层楼的楼顶"
               }
             ]
           }
@@ -317,6 +409,20 @@ export default {
         ]
       },
       {
+        key: "4",
+        icon: icon4,
+        label: "航班",
+        title: "航 班",
+        children: [
+          {
+            key: "4-1",
+            label: "",
+            title: "",
+            children: []
+          }
+        ]
+      },
+      {
         key: "3",
         icon: icon3,
         label: "任务",
@@ -336,20 +442,20 @@ export default {
           }
         ]
       },
-      {
-        key: "4",
-        icon: icon4,
-        label: "航班",
-        title: "航 班",
-        children: [
-          {
-            key: "4-1",
-            label: "",
-            title: "",
-            children: []
-          }
-        ]
-      },
+      // {
+      //   key: "4",
+      //   icon: icon4,
+      //   label: "航班",
+      //   title: "航 班",
+      //   children: [
+      //     {
+      //       key: "4-1",
+      //       label: "",
+      //       title: "",
+      //       children: []
+      //     }
+      //   ]
+      // },
       {
         key: "5",
         icon: icon5,
@@ -425,13 +531,18 @@ export default {
       showTQ: false,
       showFZ: false,
       showJF: false,
-      text:[{
-        title: 'M60T  航班按时起飞  航线正常  '
-      },{
-        title: 'M30T  航班按时起飞  航线正常  '
-      },{
-        title: 'M50T  航班受其他航线影响  航班异常'
-      },]
+      mapStyleFlag: false,
+      text: [
+        {
+          title: "M60T  航班按时起飞  航线正常  "
+        },
+        {
+          title: "M30T  航班按时起飞  航线正常  "
+        },
+        {
+          title: "M50T  航班受其他航线影响  航班异常"
+        }
+      ]
     });
 
     const dtdata = ref([
@@ -451,155 +562,155 @@ export default {
     const placeList = ref([
       {
         id: 1,
-        name: "机场1",
-        lat: 31.22,
-        lng: 121.56,
+        name: "泥城机场",
+        lat: 30.886564,
+        lng: 121.811018,
         children: [
-          {
-            key: "1-1",
-            name: "航线1",
-            lat: 31.1911,
-            lng: 121.5811
-          },
-          {
-            key: "1-2",
-            name: "航线1",
-            lat: 31.2433,
-            lng: 121.5433
-          },
-          {
-            key: "1-3",
-            name: "航线1",
-            lat: 31.2077,
-            lng: 121.5877
-          }
+          // {
+          //   key: "1-1",
+          //   name: "航线1",
+          //   lat: 30.858394,
+          //   lng: 121.799323
+          // },
+          // {
+          //   key: "1-2",
+          //   name: "航线1",
+          //   lat: 30.893203,
+          //   lng: 121.803282
+          // },
+          // {
+          //   key: "1-3",
+          //   name: "航线1",
+          //   lat: 30.902372,
+          //   lng: 121.832921
+          // }
         ]
       },
       {
         id: 2,
-        name: "机场2",
-        lat: 31.28,
-        lng: 121.64,
+        name: "张江机场",
+        lat: 31.205602,
+        lng: 121.596878,
         children: [
-          {
-            key: "1-1",
-            name: "航线1",
-            lat: 31.2529,
-            lng: 121.6822
-          },
-          {
-            key: "1-1",
-            name: "航线1",
-            lat: 31.3054,
-            lng: 121.6289
-          },
-          {
-            key: "1-1",
-            name: "航线1",
-            lat: 31.2629,
-            lng: 121.6698
-          }
+          // {
+          //   key: "1-1",
+          //   name: "航线1",
+          //   lat: 31.224347,
+          //   lng: 121.612832
+          // },
+          // {
+          //   key: "1-1",
+          //   name: "航线1",
+          //   lat: 31.183231,
+          //   lng: 121.573213
+          // },
+          // {
+          //   key: "1-1",
+          //   name: "航线1",
+          //   lat: 31.213211,
+          //   lng: 121.583211
+          // }
         ]
       },
       {
         id: 3,
-        name: "机场3",
-        lat: 30.95,
-        lng: 121.85,
+        name: "书院机场",
+        lat: 30.977697,
+        lng: 121.864152,
         children: [
-          {
-            key: "1-1",
-            name: "航线1",
-            lat: 30.9822,
-            lng: 121.8222
-          },
-          {
-            key: "1-1",
-            name: "航线1",
-            lat: 30.9292,
-            lng: 121.8903
-          }
+          // {
+          //   key: "1-1",
+          //   name: "航线1",
+          //   lat: 30.983217,
+          //   lng: 121.873211
+          // },
+          // {
+          //   key: "1-1",
+          //   name: "航线1",
+          //   lat: 30.954292,
+          //   lng: 121.842303
+          // }
         ]
       },
       {
         id: 4,
-        name: "机场4",
-        lat: 31.03,
-        lng: 121.84,
+        name: "川沙机场",
+        lat: 31.194529,
+        lng: 121.694344,
         children: [
-          {
-            key: "1-1",
-            name: "航线1",
-            lat: 31.0622,
-            lng: 121.8022
-          },
-          {
-            key: "1-1",
-            name: "航线1",
-            lat: 31.0038,
-            lng: 121.8705
-          }
+          // {
+          //   key: "1-1",
+          //   name: "航线1",
+          //   lat: 31.213212,
+          //   lng: 121.702133
+          // },
+          // {
+          //   key: "1-1",
+          //   name: "航线1",
+          //   lat: 31.18321,
+          //   lng: 121.652138
+          // }
         ]
       },
       {
         id: 5,
-        name: "机场5",
-        lat: 31.12,
-        lng: 121.68,
+        name: "大团机场",
+        lat: 31.006455,
+        lng: 121.719885,
         children: [
-          {
-            key: "1-1",
-            name: "航线1",
-            lat: 31.1622,
-            lng: 121.7022
-          }
+          // {
+          //   key: "1-1",
+          //   name: "航线1",
+          //   lat: 31.032197,
+          //   lng: 121.701238
+          // }
         ]
       },
       {
         id: 6,
-        name: "机场6",
-        lat: 31.06,
-        lng: 121.65,
+        name: "六灶机场",
+        lat: 31.097215,
+        lng: 121.705817,
         children: [
-          {
-            key: "1-1",
-            name: "航线1",
-            lat: 31.0322,
-            lng: 121.6122
-          },
-          {
-            key: "1-1",
-            name: "航线1",
-            lat: 31.0894,
-            lng: 121.6872
-          }
+          // {
+          //   key: "1-1",
+          //   name: "航线1",
+          //   lat: 31.071238,
+          //   lng: 121.692103
+          // },
+          // {
+          //   key: "1-1",
+          //   name: "航线1",
+          //   lat: 31.124232,
+          //   lng: 121.712832
+          // }
         ]
       },
       {
         id: 7,
-        name: "机场7",
-        lat: 31.02,
-        lng: 121.75,
+        name: "金桥机场",
+        lat: 31.267368,
+        lng: 121.624309,
         children: [
-          {
-            key: "1-1",
-            name: "航线1",
-            lat: 31.0522,
-            lng: 121.7822
-          },
-          {
-            key: "1-1",
-            name: "航线1",
-            lat: 31.0064,
-            lng: 121.7294
-          }
+          // {
+          //   key: "1-1",
+          //   name: "航线1",
+          //   lat: 31.243298,
+          //   lng: 121.603298
+          // },
+          // {
+          //   key: "1-1",
+          //   name: "航线1",
+          //   lat: 31.273281,
+          //   lng: 121.64321
+          // }
         ]
       },
       {
         id: 8,
-        name: "机场8",
-        lat: 31.2,
-        lng: 121.69,
+        name: "彭镇机场",
+        lat: 30.945772,
+        lng: 121.789615,
         children: [
           // {
           //   key: "1-1",
@@ -611,9 +722,9 @@ export default {
       },
       {
         id: 9,
-        name: "机场9",
-        lat: 31.14,
-        lng: 121.54,
+        name: "惠南机场",
+        lat: 31.041714,
+        lng: 121.745596,
         children: [
           // {
           //   key: "1-1",
@@ -631,9 +742,110 @@ export default {
       },
       {
         id: 10,
-        name: "机场10",
-        lat: 31.1,
-        lng: 121.78,
+        name: "航头机场",
+        lat: 31.039864,
+        lng: 121.575397,
+        children: [
+          // {
+          //   key: "1-1",
+          //   name: "航线1",
+          //   lat: 31.1422,
+          //   lng: 121.8122
+          // },
+          // {
+          //   key: "1-1",
+          //   name: "航线1",
+          //   lat: 31.0893,
+          //   lng: 121.7683
+          // }
+        ]
+      },
+
+      {
+        id: 11,
+        name: "高桥机场",
+        lat: 31.36275,
+        lng: 121.536535,
+        children: [
+          // {
+          //   key: "1-1",
+          //   name: "航线1",
+          //   lat: 31.1422,
+          //   lng: 121.8122
+          // },
+          // {
+          //   key: "1-1",
+          //   name: "航线1",
+          //   lat: 31.0893,
+          //   lng: 121.7683
+          // }
+        ]
+      },
+      {
+        id: 12,
+        name: "高行机场",
+        lat: 31.328869,
+        lng: 121.584887,
+        children: [
+          // {
+          //   key: "1-1",
+          //   name: "航线1",
+          //   lat: 31.1422,
+          //   lng: 121.8122
+          // },
+          // {
+          //   key: "1-1",
+          //   name: "航线1",
+          //   lat: 31.0893,
+          //   lng: 121.7683
+          // }
+        ]
+      },
+      {
+        id: 13,
+        name: "三林机场",
+        lat: 31.141283,
+        lng: 121.496834,
+        children: [
+          // {
+          //   key: "1-1",
+          //   name: "航线1",
+          //   lat: 31.1422,
+          //   lng: 121.8122
+          // },
+          // {
+          //   key: "1-1",
+          //   name: "航线1",
+          //   lat: 31.0893,
+          //   lng: 121.7683
+          // }
+        ]
+      },
+      {
+        id: 14,
+        name: "周康机场",
+        lat: 31.132738,
+        lng: 121.605306,
+        children: [
+          // {
+          //   key: "1-1",
+          //   name: "航线1",
+          //   lat: 31.1422,
+          //   lng: 121.8122
+          // },
+          // {
+          //   key: "1-1",
+          //   name: "航线1",
+          //   lat: 31.0893,
+          //   lng: 121.7683
+          // }
+        ]
+      },
+      {
+        id: 15,
+        name: "花木机场",
+        lat: 31.20756,
+        lng: 121.545236,
         children: [
           // {
           //   key: "1-1",
@@ -705,17 +917,21 @@ export default {
       });
       if (tempItem.key == "1") {
         // 点击机场
-        clearInterval(timer);
+        // clearInterval(timer);
         placeIndex.value = 0;
         graphicLayer.clear();
+        graphicLayer1.clear();
+        graphicLayer2.clear();
         addPlacePoint(placeList.value);
 
         // 航线动效
-        addPlaceLine();
+        // addPlaceLine();
       } else {
-        clearInterval(timer);
+        // clearInterval(timer);
         placeIndex.value = 0;
         graphicLayer.clear();
+        graphicLayer1.clear();
+        graphicLayer2.clear();
         addPlacePoint(placeList.value);
       }
     };
@@ -755,6 +971,8 @@ export default {
     };
 
     let graphicLayer = null;
+    let graphicLayer1 = null;
+    let graphicLayer2 = null;
 
     // 添加地图机场点
     const addPlacePoint = currentData => {
@@ -770,80 +988,436 @@ export default {
           position: new mars3d.LngLatPoint(item.lng, item.lat),
           style: {
             // color: "#ffff00",
-            image: "/picture/机场点位.png",
+            image: planePointIcon,
             // pixelSize: 20,
-            scale: 1.5,
+            scale: 0.16,
             clampToGround: true,
             outlineWidth: 0
           },
-          attr: { remark: "示例3" }
-          // popup: item.name
+          attr: { remark: "示例3" },
+          popup: item.name
         });
         graphicLayer.addGraphic(graphic);
       }
     };
 
+    // 航线材质
+    // 注册自定义材质
+    const LineSpriteType = "LineSprite";
+    mars3d.MaterialUtil.register(LineSpriteType, {
+      fabric: {
+        uniforms: {
+          image: Cesium.Material.DefaultImageId,
+          speed: 20,
+          globalAlpha: 1.0
+        },
+        source: `czm_material czm_getMaterial(czm_materialInput materialInput)
+      {
+        czm_material material = czm_getDefaultMaterial(materialInput);
+        vec2 st = materialInput.st;
+        vec4 colorImage = texture(image, vec2(fract(st.s - speed*czm_frameNumber/1000.0), st.t));
+        material.alpha = colorImage.a * globalAlpha;
+        material.diffuse = colorImage.rgb * 1.5 ;
+        return material;
+      }`
+      },
+      translucent: true
+    });
     // 航线动效
     const addPlaceLine = () => {
-      let j = placeIndex.value;
+      // let j = placeIndex.value;
+
       let currentData = placeList.value;
-      const tempItem = currentData[j];
-      const item1 = tempItem.children;
-      if (item1.length > 0) {
-        const center = Cesium.Cartesian3.fromDegrees(
-          tempItem.lng,
-          tempItem.lat,
-          1
-        );
-
-        const lineMaterial = mars3d.MaterialUtil.createMaterial(
-          mars3d.MaterialType.LineFlow,
-          {
-            image: "/picture/航线光点.png",
-            speed: 5
-          }
-        );
-        clearInterval(timer);
-        let i = 0;
+      for (let j = 0; j < currentData.length; j++) {
+        const tempItem = currentData[j];
+        const item1 = tempItem.children;
         if (item1.length > 0) {
-          // 首次立即出现
-          showLine(item1[i], center, lineMaterial);
-          i++;
+          const center = Cesium.Cartesian3.fromDegrees(
+            tempItem.lng,
+            tempItem.lat,
+            1
+          );
 
-          timer = setInterval(() => {
-            if (i < item1.length) {
-              const item = item1[i];
-              i++;
-              showLine(item, center, lineMaterial);
-            } else {
-              placeIndex.value++;
-              clearInterval(timer);
+          const lineMaterial = mars3d.MaterialUtil.createMaterial(
+            mars3d.MaterialType.LineFlow,
+            {
+              // image: "/picture/航线光点.png",
+              speed: 5
             }
-          }, 3400);
+          );
+          // clearInterval(timer);
+          // let i = 0;
+          for (let i = 0; i < item1.length; i++) {
+            const thisPoint = Cesium.Cartesian3.fromDegrees(
+              item1[i].lng,
+              item1[i].lat,
+              1
+            );
+            // let position3 = [thisPoint, center, thisPoint];
+            let position3 = [center, thisPoint];
+            const graphic = new mars3d.graphic.PolylinePrimitive({
+              positions: mars3d.PolyUtil.interLine(position3, {
+                minDistance: "auto"
+              }), // 切分坐标，使流动材质均匀些
+              style: {
+                width: 30,
+                // material: lineMaterial
+                // 使用自定义材质
+                materialType: LineSpriteType,
+                materialOptions: {
+                  image: "/picture/光点4.png",
+                  speed: 10
+                }
+              }
+            });
+            graphicLayer.addGraphic(graphic);
+          }
+        } else {
+          placeIndex.value++;
         }
-      } else {
-        clearInterval(timer);
-        placeIndex.value++;
       }
     };
 
-    const showLine = (item, center, lineMaterial) => {
-      const thisPoint = Cesium.Cartesian3.fromDegrees(item.lng, item.lat, 1);
-      let position3 = [thisPoint, center, thisPoint];
+    let pathEntity;
+    function initPath(data) {
+      const property = new Cesium.SampledPositionProperty();
+      property.forwardExtrapolationType = Cesium.ExtrapolationType.HOLD;
 
-      const graphic = new mars3d.graphic.PolylinePrimitive({
-        positions: mars3d.PolyUtil.interLine(position3, {
-          minDistance: "auto"
-        }), // 切分坐标，使流动材质均匀些
+      let start;
+      let stop;
+      for (let i = 0, len = data.length; i < len; i++) {
+        const item = data[i];
+        const lng = Number(item.x.toFixed(6)); // 经度
+        const lat = Number(item.y.toFixed(6)); // 纬度
+        const height = item.z; // 高度
+        const time = item.time; // 时间
+
+        let position = null;
+        if (lng && lat) {
+          position = Cesium.Cartesian3.fromDegrees(lng, lat, height);
+        }
+        let juliaDate = null;
+        if (time) {
+          juliaDate = Cesium.JulianDate.fromIso8601(time);
+        }
+        if (position && juliaDate) {
+          property.addSample(juliaDate, position);
+        }
+
+        if (i === 0) {
+          start = juliaDate;
+        } else if (i === len - 1) {
+          stop = juliaDate;
+        }
+
+        const graphic = new mars3d.graphic.PointPrimitive({
+          position,
+          style: {
+            pixelSize: 4,
+            color: "#cccccc"
+          },
+          popup: "编号:" + item.id + "<br/>时间:" + time
+        });
+        graphicLayer.addGraphic(graphic);
+      }
+
+      // 设置时钟属性
+      map.clock.startTime = start.clone();
+      map.clock.stopTime = stop.clone();
+      map.clock.currentTime = start.clone();
+      map.clock.clockRange = Cesium.ClockRange.LOOP_STOP;
+      map.clock.multiplier = 5;
+
+      if (map.controls.timeline) {
+        map.controls.timeline.zoomTo(start, stop);
+      }
+
+      // 创建path对象
+      pathEntity = new mars3d.graphic.PathEntity({
+        position: property,
+        orientation: new Cesium.VelocityOrientationProperty(property),
         style: {
-          width: 30,
-          material: lineMaterial
+          resolution: 1,
+          leadTime: 0,
+          trailTime: 3600,
+          color: "#ff0000",
+          width: 3
+        },
+        label: {
+          text: "飞机1号",
+          font_size: 19,
+          font_family: "楷体",
+          color: Cesium.Color.AZURE,
+          outline: true,
+          visibleDepth: false,
+          outlineColor: Cesium.Color.BLACK,
+          outlineWidth: 2,
+          horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+          verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+          pixelOffset: new Cesium.Cartesian2(10, -25) // 偏移量
+        },
+        // billboard: {
+        //   image: "img/marker/lace-blue.png",
+        //   horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+        //   verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+        //   visibleDepth: false
+        // },
+        model: {
+          url: "//data.mars3d.cn/gltf/mars/wrj.glb",
+          scale: 0.1,
+          minimumPixelSize: 20
+        },
+        popup: "飞行1号"
+      });
+      graphicLayer.addGraphic(pathEntity);
+
+      // 圆锥追踪体
+      const coneTrack = new mars3d.graphic.ConeTrack({
+        position: property,
+        style: {
+          length: 100,
+          angle: 12, // 半场角度
+          color: "#ff0000",
+          opacity: 0.5
         }
       });
-      graphicLayer.addGraphic(graphic);
-      setTimeout(() => {
-        graphicLayer.removeGraphic(graphic);
-      }, 3400);
+      graphicLayer.addGraphic(coneTrack);
+    }
+
+    const isindexof = ref([]);
+    let drawlayer = null; //图层对象
+    let allLineList = [];
+    const lineCount = ref(0);
+    const lineFileCount = ref(0);
+    const getPlaneLineList = currentItem => {
+      graphicLayer1.clear();
+      graphicLayer2.clear();
+      lineCount.value = 0;
+      lineFileCount.value = 0;
+      allLineList = [];
+
+      // 机场 "http://localhost:5173/line/川沙机场/川沙.kml"
+      fetch(currentItem.fileAddress)
+        .then(response => response.text())
+        .then(data => {
+          // 在这里处理文件内容
+          const anystr: any = data;
+          // console.log("anystr:111", anystr);
+
+          // 转xml
+          const xml = new DOMParser().parseFromString(anystr, "text/xml");
+          // console.log("kml:xml", xml);
+          // // 新建的文件夹名称
+          // const filename =
+          //   xml.querySelector("Folder > name")?.textContent ??
+          //   xml.querySelector("name").textContent;
+          // console.log(xml);
+          newselect = true;
+
+          setTimeout(() => {
+            toGeoJSON(xml).then(geojson => {
+              // console.log("geojson", geojson);
+
+              for (let i = 0; i < geojson.features.length; i++) {
+                let item = geojson.features[i];
+                if (item.geometry.type == "Point") {
+                  const graphic = new mars3d.graphic.BillboardEntity({
+                    name: item.properties.name,
+                    position: item.geometry.coordinates,
+                    style: {
+                      image: pointIcon,
+                      scale: 0.5,
+                      color: "#2d8cf0",
+                      horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+                      verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+                      clampToGround: true
+                    },
+                    attr: { remark: item.properties.name },
+                    popup: item.properties.name
+                  });
+                  graphicLayer1.addGraphic(graphic);
+                } else if (item.geometry.type == "LineString") {
+                  const graphic = new mars3d.graphic.CorridorEntity({
+                    positions: item.geometry.coordinates,
+                    style: {
+                      // width: item.properties.strokeWidth,
+                      width: 30,
+                      color: item.properties.stroke
+                    },
+                    attr: { remark: item.properties.name },
+                    popup: item.properties.name
+                  });
+                  graphicLayer1.addGraphic(graphic);
+                } else if (item.geometry.type == "Polygon") {
+                  const graphic = new mars3d.graphic.PolygonEntity({
+                    positions: item.geometry.coordinates,
+                    style: {
+                      color: item.properties.fill,
+                      opacity: 0.5
+                    },
+                    attr: { remark: item.properties.name },
+                    popup: item.properties.name
+                  });
+                  graphicLayer1.addGraphic(graphic);
+                }
+              }
+            });
+          }, 500);
+        });
+      // 航线  "/public/line/川沙机场/川沙航线/*.kmz"
+      let modulesFiles;
+      switch (currentItem.id) {
+        case 1:
+          modulesFiles = import.meta.glob("/public/line/泥城机场/泥城/*.kmz");
+          break;
+        case 2:
+          modulesFiles = import.meta.glob(
+            "/public/line/张江机场/张江航线/*.kmz"
+          );
+          break;
+        case 3:
+          modulesFiles = import.meta.glob(
+            "/public/line/书院机场/书院航线/*.kmz"
+          );
+          break;
+        case 4:
+          modulesFiles = import.meta.glob(
+            "/public/line/川沙机场/川沙航线/*.kmz"
+          );
+          break;
+        case 5:
+          modulesFiles = import.meta.glob(
+            "/public/line/大团机场/大团航线/*.kmz"
+          );
+          break;
+        case 6:
+          modulesFiles = import.meta.glob("/public/line/六灶机场/六灶/*.kmz");
+          break;
+        case 7:
+          modulesFiles = import.meta.glob(
+            "/public/line/金桥机场/金桥航线/*.kmz"
+          );
+          break;
+      }
+
+      let modules = [];
+      // console.log("modulesFiles", modulesFiles);
+      for (const path in modulesFiles) {
+        modules = [].concat(modules, modulesFiles[path].name);
+      }
+      // console.log("modules", modules);
+      allLineList = [];
+      if (modules != null && modules.length > 0) {
+        lineFileCount.value = modules.length;
+        modules.forEach(item => {
+          let kmlfile = item.toString().substring(7);
+          let nameList = kmlfile.split("/");
+          let name = nameList[nameList.length - 1].split(".")[0];
+
+          // console.log("kmlfile", kmlfile);
+          var geocachePromise = Cesium.KmlDataSource.load(kmlfile).then(
+            function(dataSource) {
+              // map.dataSources.add(dataSource);
+              // console.log("dataSource", dataSource);
+              // 获取实体数组
+              var geocacheEntities = dataSource.entities.values;
+              // if (name == "1010247") {
+              //   console.log("1010247", name);
+              //   console.log("geocacheEntities", geocacheEntities);
+              // }
+
+              let lineList = [];
+              for (var i = 0; i < geocacheEntities.length; i++) {
+                var entity = geocacheEntities[i];
+
+                let position = entity.position;
+                if (position != undefined) {
+                  var cartographicPosition = Cesium.Cartographic.fromCartesian(
+                    entity.position.getValue(Cesium.JulianDate.now())
+                  );
+                  var latitude = Cesium.Math.toDegrees(
+                    cartographicPosition.latitude
+                  );
+                  var longitude = Cesium.Math.toDegrees(
+                    cartographicPosition.longitude
+                  );
+
+                  const thisPoint = Cesium.Cartesian3.fromDegrees(
+                    longitude,
+                    latitude,
+                    100
+                  );
+                  lineList.push(thisPoint);
+
+                  // lineList.push([longitude, latitude, 100]);
+                }
+              }
+              // console.log("lineList", lineList);
+              if (lineList != null && lineList.length > 0) {
+                let tempItem = {
+                  name: name,
+                  lineList: lineList
+                };
+                allLineList.push(tempItem);
+              }
+              lineCount.value++;
+            }
+          );
+        });
+      }
+    };
+
+    const showLine = () => {
+      console.log("allLineList", allLineList);
+      if (allLineList != null && allLineList.length > 0) {
+        allLineList.forEach(item => {
+          // const graphic = new mars3d.graphic.PolylinePrimitive({
+          //   positions: mars3d.PolyUtil.interLine(item.lineList, {
+          //     minDistance: "auto"
+          //   }), // 切分坐标，使流动材质均匀些
+          //   style: {
+          //     width: 30,
+          //     // material: lineMaterial
+          //     // 使用自定义材质
+          //     materialType: LineSpriteType,
+          //     materialOptions: {
+          //       image: "/picture/光点4.png",
+          //       speed: 5
+          //     }
+          //   },
+          //   attr: { remark: item.name },
+          //   popup: item.name
+          // });
+
+          // const graphic = new mars3d.graphic.CorridorEntity({
+          //   positions: lineList,
+          //   style: {
+          //     width: 30,
+          //     color: "#ffffff"
+          //   },
+          //   attr: { remark: "测试" },
+          //   popup: "测试"
+          // });
+
+          const graphic = new mars3d.graphic.PolylineEntity({
+            positions: item.lineList,
+            style: {
+              width: 5,
+              materialType: mars3d.MaterialType.LineFlowColor,
+              materialOptions: {
+                color: "#00ffff",
+                speed: 10,
+                percent: 0.5,
+                alpha: 0.7
+              }
+            },
+            attr: { remark: item.name },
+            popup: item.name
+          });
+
+          graphicLayer2.addGraphic(graphic);
+        });
+      }
     };
 
     // 点击子菜单
@@ -859,10 +1433,14 @@ export default {
     const clickContentItem = (tempItem, index) => {
       state.value.contentSelectedIndex = index;
       state.value.contentSelectedId = tempItem.id;
+      // 显示机场及航线数据
+      // debugger;
+      getPlaneLineList(tempItem);
     };
 
+    // 反制区显示
     const addArea1 = flag => {
-      const graphic = new mars3d.graphic.BillboardEntity({
+      const graphic1 = new mars3d.graphic.BillboardEntity({
         id: 9998,
         name: "反制区",
         position: new mars3d.LngLatPoint(121.9, 30.98),
@@ -879,13 +1457,14 @@ export default {
       });
       if (flag == 1) {
         state.value.showFZ = true;
-        graphicLayer.addGraphic(graphic);
+        graphicLayer.addGraphic(graphic1);
       } else {
         state.value.showFZ = false;
         graphicLayer.removeGraphic(graphic1);
       }
     };
 
+    // 禁飞区显示
     const addArea2 = flag => {
       const graphic1 = new mars3d.graphic.BillboardEntity({
         id: 9999,
@@ -910,6 +1489,153 @@ export default {
         graphicLayer.removeGraphic(graphic1);
       }
     };
+
+    let newselect = false; //需要重新选择最后一个文件夹
+    const gData = ref();
+    // 自定义上传 上传组件仅保留选择文件功能 不然会自动调接口
+    const customUpload = e => {
+      const files = fileList.value;
+      fileList.value = [];
+      if (files.length > 0) {
+        // 拿到文件后读取
+        const file = files[0].originFileObj;
+        let filelast = file.name.slice(file.name.lastIndexOf("."));
+        if (filelast == ".kml") {
+          console.log("kml:", file);
+          const reader = new FileReader();
+          let rename = false; //是否重名
+          reader.readAsText(file, "utf-8");
+          reader.onload = async () => {
+            // const anystr: any = reader.result;
+            // console.log("anystr",anystr);
+            fetch("http://localhost:5173/line/川沙机场/川沙.kml")
+              .then(response => response.text())
+              .then(data => {
+                // 在这里处理文件内容
+                const anystr: any = data;
+                console.log("anystr:111", anystr);
+
+                // 转xml
+                const xml = new DOMParser().parseFromString(anystr, "text/xml");
+                console.log("kml:xml", xml);
+                // // 新建的文件夹名称
+                // const filename =
+                //   xml.querySelector("Folder > name")?.textContent ??
+                //   xml.querySelector("name").textContent;
+                // console.log(xml);
+                newselect = true;
+
+                setTimeout(() => {
+                  toGeoJSON(xml).then(geojson => {
+                    console.log("geojson", geojson);
+
+                    for (let i = 0; i < geojson.features.length; i++) {
+                      let item = geojson.features[i];
+                      if (item.geometry.type == "Point") {
+                        const graphic = new mars3d.graphic.BillboardEntity({
+                          name: item.properties.name,
+                          position: item.geometry.coordinates,
+                          style: {
+                            image: "/picture/机场点位.png",
+                            scale: 1,
+                            horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+                            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+                            clampToGround: true
+                          },
+                          attr: { remark: item.properties.name },
+                          popup: item.properties.name
+                        });
+                        graphicLayer.addGraphic(graphic);
+                      } else if (item.geometry.type == "LineString") {
+                        const graphic = new mars3d.graphic.CorridorEntity({
+                          positions: item.geometry.coordinates,
+                          style: {
+                            // width: item.properties.strokeWidth,
+                            width: 50,
+                            color: item.properties.stroke
+                          },
+                          attr: { remark: item.properties.name },
+                          popup: item.properties.name
+                        });
+                        graphicLayer.addGraphic(graphic);
+                      } else if (item.geometry.type == "Polygon") {
+                        const graphic = new mars3d.graphic.PolygonEntity({
+                          positions: item.geometry.coordinates,
+                          style: {
+                            color: item.properties.fill,
+                            opacity: 0.5
+                          },
+                          attr: { remark: item.properties.name },
+                          popup: item.properties.name
+                        });
+                        graphicLayer.addGraphic(graphic);
+                      }
+                    }
+                  });
+                }, 500);
+              });
+          };
+        } else if (filelast == ".kmz") {
+          console.log("kmz:", file);
+          // const reader = new FileReader();
+          // let rename = false; //是否重名
+          // reader.readAsText(file, "utf-8");
+          // reader.onload = async () => {
+          // const anystr: any = reader.result;
+          // console.log(anystr);
+          var geocachePromise = Cesium.KmlDataSource.load(kml2).then(function(
+            dataSource
+          ) {
+            map.dataSources.add(dataSource);
+            console.log("dataSource", dataSource);
+            // 获取实体数组
+            var geocacheEntities = dataSource.entities.values;
+            console.log("geocacheEntities", geocacheEntities);
+            let lineList = [];
+            for (var i = 0; i < geocacheEntities.length; i++) {
+              var entity = geocacheEntities[i];
+              let position = entity.position;
+              if (position != undefined) {
+                var cartographicPosition = Cesium.Cartographic.fromCartesian(
+                  entity.position.getValue(Cesium.JulianDate.now())
+                );
+                var latitude = Cesium.Math.toDegrees(
+                  cartographicPosition.latitude
+                );
+                var longitude = Cesium.Math.toDegrees(
+                  cartographicPosition.longitude
+                );
+                const thisPoint = Cesium.Cartesian3.fromDegrees(
+                  longitude,
+                  latitude,
+                  1
+                );
+                lineList.push(thisPoint);
+              }
+            }
+            console.log("lineList", lineList);
+            const graphic = new mars3d.graphic.PolylinePrimitive({
+              positions: mars3d.PolyUtil.interLine(lineList, {
+                minDistance: "auto"
+              }), // 切分坐标，使流动材质均匀些
+              style: {
+                width: 30,
+                // material: lineMaterial
+                // 使用自定义材质
+                materialType: LineSpriteType,
+                materialOptions: {
+                  image: "/picture/光点4.png",
+                  speed: 5
+                }
+              }
+            });
+            graphicLayer.addGraphic(graphic);
+          });
+          // };
+        }
+      }
+    };
+
     onMounted(async function() {
       console.log(mars3d);
 
@@ -917,21 +1643,31 @@ export default {
       // 创建矢量数据图层
       graphicLayer = new mars3d.layer.GraphicLayer();
       map.addLayer(graphicLayer);
+      // 创建矢量数据图层
+      graphicLayer1 = new mars3d.layer.GraphicLayer();
+      map.addLayer(graphicLayer1);
+      // 创建矢量数据图层
+      graphicLayer2 = new mars3d.layer.GraphicLayer();
+      map.addLayer(graphicLayer2);
+
       addDemoGraphics();
       addPlacePoint(placeList.value);
-      // addArea1();
-      // addArea2();
+      // getPlaneLineList();
     });
     watch(
-      () => placeIndex.value,
+      () => lineCount.value,
       () => {
-        if (placeIndex.value < placeList.value.length) {
-          addPlaceLine();
+        // console.log(lineCount.value)
+        if (
+          lineCount.value == lineFileCount.value &&
+          lineFileCount.value != 0
+        ) {
+          showLine();
         }
       }
     );
     onUnmounted(() => {
-      clearInterval(timer);
+      // clearInterval(timer);
       map = null;
     });
     return {
@@ -949,19 +1685,9 @@ export default {
       clickContentItem,
       addArea1,
       addArea2,
-      dtdata
-      // placeList
-      // onSearch,
-      // clickTabButton,
-      // tabTitleClick,
-      // leftIcon,
-      // rightIcon,
-      // currentPage,
-      // pageSize,
-      // changePage,
-      // searchFlag,
-      // searchCardClick,
-      // clickContentCard
+      dtdata,
+      fileList,
+      customUpload
     };
   }
 };
@@ -1012,7 +1738,7 @@ export default {
   width: 100%;
   // height: 50px;
   // height: auto;
-  background: url("/picture/标题形状.png");
+  background: url("/picture/标题背景.png");
   background-repeat: no-repeat;
   background-size: cover;
   background-position: center;
@@ -1128,10 +1854,8 @@ export default {
     left: 70px;
     z-index: 2;
     color: #fff;
-    width: 355px;
-    height: 363px;
-    background: url("/picture/在飞弹窗.png");
-    background-size: cover;
+
+    background-size: contain;
     object-fit: cover;
     display: flex;
     justify-content: center;
@@ -1185,6 +1909,61 @@ export default {
   }
 }
 .bottomArea {
+  position: absolute;
+  z-index: 2;
+  bottom: 0px;
+  height: 40px;
+  right: 0px;
+  width: 100%;
+  // color: rgba(255, 255, 255, 0.8);
+  flex-direction: row;
+  display: flex;
+  // background: url("/picture/底部背景.png");
+  justify-content: center;
+  align-items: end;
+  .showMapButton {
+    background: rgba(0, 39, 205, 0.3);
+    color: #fff;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    height: 90px;
+    border-radius: 0px 10px 10px 0px;
+    // margin: 0px 8px;
+  }
+}
+.mapStyleArea {
+  background: rgba(0, 39, 205, 0.3);
+  color: #fff;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  height: 90px;
+  border-radius: 0px 10px 10px 0px;
+  .checkArea {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    margin: 10px;
+    .checkItemImg {
+      position: relative;
+      left: 10px;
+      top: 18px;
+      z-index: 3;
+    }
+  }
+  .hiddenButton {
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0px 8px;
+  }
+}
+.bottomTextArea {
   position: absolute;
   z-index: 2;
   bottom: 0px;

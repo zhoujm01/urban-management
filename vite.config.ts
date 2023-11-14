@@ -4,7 +4,8 @@ import { resolve } from 'path'
 import { mars3dPlugin } from 'vite-plugin-mars3d';
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [vue(),mars3dPlugin()],
+  assetsInclude: ['**/*.kml','**/*.kmz'],
+  plugins: [vue(), mars3dPlugin()],
   //解决“vite use `--host` to expose”
   base: './',	//不加打包后白屏
   server: {
@@ -21,4 +22,8 @@ export default defineConfig({
       }
     ]
   },
+  optimizeDeps: {
+    include: ["mars3d", "kml-geojson"]
+  },
+  
 })

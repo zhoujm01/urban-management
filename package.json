@@ -13,10 +13,13 @@
     "ant-design-vue": "^4.0.4",
     "css-filter-converter": "^1.0.109",
     "echarts": "^5.4.3",
+    "kml-geojson": "^1.2.2",
+    "kml-parser": "^1.0.0",
     "mars3d": "^3.6.10",
     "mars3d-cesium": "^1.110",
     "screenfull": "^6.0.2",
     "svg-sprite-loader": "^6.0.11",
+    "uuid": "^9.0.1",
     "vue": "^3.3.4",
     "vue-router": "^4.2.5",
     "vue-seamless-scroll": "^1.1.23"
