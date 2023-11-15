@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build":"vue-tsc --noEmit && vite build",
+    "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -13,6 +13,7 @@
     "ant-design-vue": "^4.0.4",
     "css-filter-converter": "^1.0.109",
     "echarts": "^5.4.3",
+    "echarts-gl": "^2.0.9",
     "kml-geojson": "^1.2.2",
     "kml-parser": "^1.0.0",
     "mars3d": "^3.6.10",
