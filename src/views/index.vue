@@ -15,7 +15,7 @@
             >
               <div style="color:rgb(0, 190, 201);margin-top:5px">添加</div>
             </a-upload>-->
-            <!-- <div>时间</div> -->
+            <div style="margin-top: 7px;margin-left:10px">{{ timeInfo.nowTime }}</div>
             <div>
               <img src="/picture/用户.png" style="height: 25px;position:absolute;top:40px;left:0px;" />
             </div>
@@ -31,7 +31,7 @@
             <div class="titleLight">
               <div class="warning">
                 <!-- <div class="text"> -->
-                  <img class="text" src="/picture/光线.png" />
+                <img class="text" src="/picture/光线.png" />
                 <!-- </div> -->
               </div>
             </div>
@@ -297,6 +297,11 @@ export default {
     // const baseUrl = ref(appSettings.restUrl + "uploadimg");
 
     const searchValue = ref();
+
+    const timeInfo = reactive({
+      setInterval: null,
+      nowTime: ""
+    });
 
     var mapOptions = {
       basemaps: [
@@ -3308,8 +3313,50 @@ export default {
       }
     };
 
+    // 显示时间
+    const setNowTimes = () => {
+      let myDate = new Date();
+      // let wk = myDate.getDay();
+      // let yy = String(myDate.getFullYear());
+      // let mm = myDate.getMonth() + 1;
+      // let dd = String(
+      //   myDate.getDate() < 10 ? "0" + myDate.getDate() : myDate.getDate()
+      // );
+      // console.log("vvvvvvvv", wk);
+      let hou = String(
+        myDate.getHours() < 10 ? "0" + myDate.getHours() : myDate.getHours()
+      );
+      let min = String(
+        myDate.getMinutes() < 10
+          ? "0" + myDate.getMinutes()
+          : myDate.getMinutes()
+      );
+      let sec = String(
+        myDate.getSeconds() < 10
+          ? "0" + myDate.getSeconds()
+          : myDate.getSeconds()
+      );
+
+      // let weeks = [
+      //   "星期日",
+      //   "星期一",
+      //   "星期二",
+      //   "星期三",
+      //   "星期四",
+      //   "星期五",
+      //   "星期六"
+      // ];
+      // let week = weeks[wk];
+      // timeInfo.nowDate = yy + "-" + mm + "-" + dd + "";
+      timeInfo.nowTime = hou + ":" + min + ":" + sec;
+      // timeInfo.nowWeek = week;
+    };
+
     onMounted(async function() {
       console.log(mars3d);
+      timeInfo.setInterval = setInterval(() => {
+        setNowTimes();
+      }, 1000);
 
       map = new mars3d.Map("mars3dContainer2", mapOptions);
       // 创建矢量数据图层 机场点位
@@ -3347,6 +3394,7 @@ export default {
     });
     return {
       // titleText,
+      timeInfo,
       state,
       menuList,
       searchValue,
@@ -3685,7 +3733,7 @@ export default {
 // 标题光点
 .titleLight {
   width: 100%;
-  height: 10px;
+  height: 15px;
   display: flex;
   justify-content: center;
   align-items: end;
@@ -3694,18 +3742,18 @@ export default {
     display: inline-block;
     // width: 600px;
     width: 480px;
-    height: 20px;
+    height: 30px;
     // border-radius: 32px;
     position: absolute;
     margin-top: 10px;
-    // margin-left: 5px;
+    margin-left: 10px;
     overflow: hidden;
 
     .text {
       // color: rgba(255, 255, 255, 0.8);
       // // font-size: 18px;
       // line-height: 36px;
-      height: 20px;
+      height: 30px;
       width: 300px;
 
       display: inline-block;
@@ -3714,13 +3762,13 @@ export default {
     }
     @keyframes wordsLoop1 {
       0% {
-        transform: translateX(100%);
+        transform: translateX(70%);
       }
       50% {
-        transform: translateX(-100%);
+        transform: translateX(-70%);
       }
       100% {
-        transform: translateX(100%);
+        transform: translateX(70%);
       }
     }
   }
