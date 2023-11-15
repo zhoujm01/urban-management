@@ -27,6 +27,14 @@
             <div>
               <img class="title2" src="/picture/无人机云平台.png" />
             </div>
+            <!-- 标题光点 -->
+            <div class="titleLight">
+              <div class="warning">
+                <!-- <div class="text"> -->
+                  <img class="text" src="/picture/光线.png" />
+                <!-- </div> -->
+              </div>
+            </div>
           </div>
           <div style="position: absolute;top:-5px;right:0px">
             <!-- 搜索框 -->
@@ -36,6 +44,7 @@
                 v-model:value="searchValue"
                 placeholder="输入机场名称"
                 :bordered="false"
+                @change="searchChange"
               >
                 <template #prefix>
                   <img class="searchLogo" src="/picture/搜索.png" />
@@ -142,50 +151,41 @@
               />
             </div>
             <!-- 点击三级后显示详情 -->
+            <!-- 3个窗口 -->
             <div style="position: absolute;right:10px;top:50px" v-if="state.contentSelectedId!=0">
-              <img src="/picture/监管对象.png" style="width: 300px;" />
+              <img src="/picture/监管对象-单个窗口.png" style="width: 300px;" />
+              <img src="/picture/数据分析.png" style="width: 300px;" />
+              <img src="/picture/实时视频.png" style="width: 300px;" />
             </div>
+            <!-- 任务 -->
             <div style="position: absolute;right:10px;top:50px" v-if="state.subSelectedKey=='3-1'">
               <img src="/picture/监管对象 (2).png" style="width: 550px;" />
             </div>
+            <!-- 航班 -->
             <div style="position: absolute;right:10px;top:50px" v-if="state.selectedKeys[0]=='4'">
               <img src="/picture/航班列表.png" style="width: 750px;" />
             </div>
+            <!-- 直播画面 -->
             <div style="position: absolute;right:10px;top:50px" v-if="state.subSelectedKey=='5-1'">
               <img src="/picture/机场直播 (1).png" style="width: 600px;" />
             </div>
+            <!-- 数据分析 -->
+            <div style="position: absolute;right:10px;top:50px" v-if="state.subSelectedKey=='6-1'">
+              <img src="/picture/数据分析.png" style="width: 300px;" />
+            </div>
+            <!-- 模型库 -->
             <div style="position: absolute;right:10px;top:50px" v-if="state.subSelectedKey=='7-1'">
               <img src="/picture/机场直播.png" style="width: 600px;" />
             </div>
 
             <div>
-              <div style="position: absolute;right:0px;bottom:130px;">
-                <img
-                  src="/picture/反制.png"
-                  style="width: 50px;"
-                  v-if="!state.showFZ"
-                  @click="addArea1(1)"
-                />
-                <img
-                  src="/picture/反制1.png"
-                  style="width: 100px;"
-                  v-if="state.showFZ"
-                  @click="addArea1(2)"
-                />
+              <div style="position: absolute;right:0px;bottom:130px;" @click="addArea1()">
+                <img src="/picture/反制.png" style="width: 50px;" v-if="!state.showFZ" />
+                <img src="/picture/反制1.png" style="width: 100px;" v-if="state.showFZ" />
               </div>
-              <div style="position: absolute;right:0px;bottom:80px;">
-                <img
-                  src="/picture/禁飞.png"
-                  style="width: 50px;"
-                  v-if="!state.showJF"
-                  @click="addArea2(1)"
-                />
-                <img
-                  src="/picture/禁飞1.png"
-                  style="width: 100px;"
-                  v-if="state.showJF"
-                  @click="addArea2(2)"
-                />
+              <div style="position: absolute;right:0px;bottom:80px;" @click="addArea2()">
+                <img src="/picture/禁飞.png" style="width: 50px;" v-if="!state.showJF" />
+                <img src="/picture/禁飞1.png" style="width: 100px;" v-if="state.showJF" />
               </div>
             </div>
           </div>
@@ -1103,6 +1103,8 @@ export default {
     let graphicLayer1 = null;
     let graphicLayer2 = null;
 
+    let graphicLayer3 = null;
+
     // 添加地图机场点
     const addPlacePoint = currentData => {
       graphicLayer.clear();
@@ -1331,7 +1333,7 @@ export default {
       map.setCameraView({
         lat: currentItem.lat,
         lng: currentItem.lng,
-        alt: 50000,
+        alt: 30000,
         heading: 0,
         pitch: -90
       });
@@ -2952,6 +2954,13 @@ export default {
       // graphicLayer1
 
       if (tempItem.key == "2-1") {
+        map.setCameraView({
+          lat: 31.13,
+          lng: 121.75,
+          alt: 80000,
+          heading: 0,
+          pitch: -90
+        });
         menuList.value[1].children[0].children.forEach(item => {
           if (item.fileAddress != null && item.fileAddress != "") {
             let fileUrl = new URL(item.fileAddress, import.meta.url).href;
@@ -3009,9 +3018,8 @@ export default {
       getPlaneLineList(tempItem);
     };
 
-    // 反制区显示
-    const addArea1 = flag => {
-      const graphic1 = new mars3d.graphic.BillboardEntity({
+    const graphicFZ = ref(
+      new mars3d.graphic.BillboardEntity({
         id: 9998,
         name: "反制区",
         position: new mars3d.LngLatPoint(121.9, 30.98),
@@ -3023,21 +3031,24 @@ export default {
           clampToGround: true,
           outlineWidth: 0
         },
-        attr: { remark: "示例3" }
+        attr: { remark: "反制区" }
         // popup: item.name
-      });
-      if (flag == 1) {
+      })
+    );
+    // 反制区显示
+    const addArea1 = () => {
+      // graphicFZ.value =
+      if (state.value.showFZ == false) {
         state.value.showFZ = true;
-        graphicLayer.addGraphic(graphic1);
-      } else {
+        graphicLayer3.addGraphic(graphicFZ.value);
+      } else if (state.value.showFZ == true) {
         state.value.showFZ = false;
-        graphicLayer.removeGraphic(graphic1);
+        graphicLayer3.removeGraphic(graphicFZ.value);
       }
     };
 
-    // 禁飞区显示
-    const addArea2 = flag => {
-      const graphic1 = new mars3d.graphic.BillboardEntity({
+    const graphicJF = ref(
+      new mars3d.graphic.BillboardEntity({
         id: 9999,
         name: "禁飞区",
         position: new mars3d.LngLatPoint(121.93, 30.96),
@@ -3049,15 +3060,18 @@ export default {
           clampToGround: true,
           outlineWidth: 0
         },
-        attr: { remark: "示例3" }
+        attr: { remark: "禁飞区" }
         // popup: item.name
-      });
-      if (flag == 1) {
+      })
+    );
+    // 禁飞区显示
+    const addArea2 = () => {
+      if (state.value.showJF == false) {
         state.value.showJF = true;
-        graphicLayer.addGraphic(graphic1);
-      } else {
+        graphicLayer3.addGraphic(graphicJF.value);
+      } else if (state.value.showJF == true) {
         state.value.showJF = false;
-        graphicLayer.removeGraphic(graphic1);
+        graphicLayer3.removeGraphic(graphicJF.value);
       }
     };
 
@@ -3271,19 +3285,45 @@ export default {
         });
     };
 
+    // 搜索机场名称
+    const searchChange = () => {
+      if (searchValue.value != null && searchValue.value != "") {
+        let center = null;
+        placeList.value.forEach(item => {
+          if (center == null) {
+            if (item.name.indexOf(searchValue.value) != -1) {
+              center = item;
+            }
+          }
+        });
+        if (center != null) {
+          map.setCameraView({
+            lat: center.lat,
+            lng: center.lng,
+            alt: 30000,
+            heading: 0,
+            pitch: -90
+          });
+        }
+      }
+    };
+
     onMounted(async function() {
       console.log(mars3d);
 
       map = new mars3d.Map("mars3dContainer2", mapOptions);
-      // 创建矢量数据图层
+      // 创建矢量数据图层 机场点位
       graphicLayer = new mars3d.layer.GraphicLayer();
       map.addLayer(graphicLayer);
-      // 创建矢量数据图层
+      // 创建矢量数据图层 监管对象、机场
       graphicLayer1 = new mars3d.layer.GraphicLayer();
       map.addLayer(graphicLayer1);
-      // 创建矢量数据图层
+      // 创建矢量数据图层 航线
       graphicLayer2 = new mars3d.layer.GraphicLayer();
       map.addLayer(graphicLayer2);
+      // 创建矢量数据图层 禁飞、反制区
+      graphicLayer3 = new mars3d.layer.GraphicLayer();
+      map.addLayer(graphicLayer3);
 
       addDemoGraphics();
       addPlacePoint(placeList.value);
@@ -3310,6 +3350,7 @@ export default {
       state,
       menuList,
       searchValue,
+      searchChange,
       selectMenuColor,
       clickMenu,
       toggleCollapsed,
@@ -3612,20 +3653,6 @@ export default {
   justify-content: center;
   align-items: end;
 }
-// .buttomText {
-//   flex-direction: row;
-//   display: flex;
-//   // display: inline-block;
-//   animation: 20s wordsLoop linear infinite normal;
-// }
-// @keyframes wordsLoop {
-//   0% {
-//     transform: translateX(200%);
-//   }
-//   100% {
-//     transform: translateX(-100%);
-//   }
-// }
 
 .warning {
   display: inline-block;
@@ -3640,7 +3667,7 @@ export default {
 
   .text {
     color: rgba(255, 255, 255, 0.8);
-    font-size: 18px;
+    // font-size: 18px;
     line-height: 36px;
     display: inline-block;
     white-space: nowrap;
@@ -3652,6 +3679,49 @@ export default {
     }
     100% {
       transform: translateX(-100%);
+    }
+  }
+}
+// 标题光点
+.titleLight {
+  width: 100%;
+  height: 10px;
+  display: flex;
+  justify-content: center;
+  align-items: end;
+
+  .warning {
+    display: inline-block;
+    // width: 600px;
+    width: 480px;
+    height: 20px;
+    // border-radius: 32px;
+    position: absolute;
+    margin-top: 10px;
+    // margin-left: 5px;
+    overflow: hidden;
+
+    .text {
+      // color: rgba(255, 255, 255, 0.8);
+      // // font-size: 18px;
+      // line-height: 36px;
+      height: 20px;
+      width: 300px;
+
+      display: inline-block;
+      white-space: nowrap;
+      animation: 20s wordsLoop1 linear infinite normal;
+    }
+    @keyframes wordsLoop1 {
+      0% {
+        transform: translateX(100%);
+      }
+      50% {
+        transform: translateX(-100%);
+      }
+      100% {
+        transform: translateX(100%);
+      }
     }
   }
 }
