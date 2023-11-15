@@ -229,9 +229,9 @@
               <div v-for="item in dtdata" :key="item.id">
                 <div>{{ item.text }}</div>
               </div>
-            </div> -->
-            <div class="warning" >
-              <div class="text">M60T  航班按时起飞  航线正常  M30T  航班按时起飞  航线正常  M50T  航班受其他航线影响  航班异常</div>
+            </div>-->
+            <div class="warning">
+              <div class="text">M60T 航班按时起飞 航线正常 M30T 航班按时起飞 航线正常 M50T 航班受其他航线影响 航班异常</div>
             </div>
             <!-- <TextScroll
             :text="state.text"
@@ -401,9 +401,7 @@ export default {
                 name: "7.金桥机场",
                 lat: 31.267368,
                 lng: 121.624309,
-                fileAddress:
-                  appSettings.restUrl +
-                  "line/金桥机场/KML导出_20231110093722.kml",
+                fileAddress: "/line/金桥机场/KML导出_20231110093722.kml",
                 lineAddress: "/public/line/金桥机场/金桥航线/*.kmz",
                 address: "上海市浦东新区金海路1357号3号楼9层楼的楼顶"
               }
@@ -421,7 +419,115 @@ export default {
             key: "2-1",
             label: "监管对象",
             title: "监管对象",
-            children: []
+            children: [
+              {
+                id: 1,
+                name: "1.泥城机场",
+                lat: 30.886564,
+                lng: 121.811018,
+                // kml文件地址
+                fileAddress: "/line/泥城机场/泥城.kml"
+              },
+              {
+                id: 2,
+                name: "2.张江机场",
+                lat: 31.205602,
+                lng: 121.596878,
+                fileAddress: "/line/张江机场/张江.kml"
+              },
+              {
+                id: 3,
+                name: "3.书院机场",
+                lat: 30.977697,
+                lng: 121.864152,
+                fileAddress: "/line/书院机场/书院.kml"
+              },
+              {
+                id: 4,
+                name: "4.川沙机场",
+                lat: 31.194529,
+                lng: 121.694344,
+                fileAddress: "/line/川沙机场/川沙.kml"
+              },
+              {
+                id: 5,
+                name: "5.大团机场",
+                lat: 31.006455,
+                lng: 121.719885,
+                fileAddress: "/line/大团机场/大团.kml"
+              },
+              {
+                id: 6,
+                name: "6.六灶机场",
+                lat: 31.097215,
+                lng: 121.705817,
+                fileAddress: "/line/六灶机场/六灶.kml"
+              },
+              {
+                id: 7,
+                name: "7.金桥机场",
+                lat: 31.267368,
+                lng: 121.624309,
+                fileAddress: "/line/金桥机场/KML导出_20231110093722.kml"
+              },
+              {
+                id: 8,
+                name: "彭镇机场",
+                lat: 30.945772,
+                lng: 121.789615,
+                fileAddress: ""
+              },
+              {
+                id: 9,
+                name: "惠南机场",
+                lat: 31.041714,
+                lng: 121.745596,
+                fileAddress: ""
+              },
+              {
+                id: 10,
+                name: "航头机场",
+                lat: 31.039864,
+                lng: 121.575397,
+                fileAddress: ""
+              },
+
+              {
+                id: 11,
+                name: "高桥机场",
+                lat: 31.36275,
+                lng: 121.536535,
+                fileAddress: "/line/高桥机场/高桥.kml"
+              },
+              {
+                id: 12,
+                name: "高行机场",
+                lat: 31.328869,
+                lng: 121.584887,
+                fileAddress: "/line/高行机场/高行.kml"
+              },
+              {
+                id: 13,
+                name: "三林机场",
+                lat: 31.141283,
+                lng: 121.496834,
+                fileAddress: "/line/三林机场/三林.kml"
+              },
+              {
+                id: 14,
+                name: "周康机场",
+                lat: 31.132738,
+                lng: 121.605306,
+                fileAddress: ""
+              },
+              {
+                id: 15,
+                name: "花木机场",
+                lat: 31.20756,
+                lng: 121.545236,
+                fileAddress: "/line/花木机场/花木.kml"
+              }
+            ]
           },
           {
             key: "2-2",
@@ -1238,73 +1344,8 @@ export default {
       // const buildUrl = `${baseUrl}/dist`;
       // let fileUrl = buildUrl + currentItem.fileAddress;
       console.log("fileUrl:", fileUrl);
-      fetch(fileUrl)
-        .then(response => response.text())
-        .then(data => {
-          // 在这里处理文件内容
-          const anystr: any = data;
-          // console.log("anystr:111", anystr);
+      showPlaneInfo(fileUrl);
 
-          // 转xml
-          const xml = new DOMParser().parseFromString(anystr, "text/xml");
-          // console.log("kml:xml", xml);
-          // // 新建的文件夹名称
-          // const filename =
-          //   xml.querySelector("Folder > name")?.textContent ??
-          //   xml.querySelector("name").textContent;
-          // console.log(xml);
-          newselect = true;
-
-          setTimeout(() => {
-            toGeoJSON(xml).then(geojson => {
-              // console.log("geojson", geojson);
-
-              for (let i = 0; i < geojson.features.length; i++) {
-                let item = geojson.features[i];
-                if (item.geometry.type == "Point") {
-                  const graphic = new mars3d.graphic.BillboardEntity({
-                    name: item.properties.name,
-                    position: item.geometry.coordinates,
-                    style: {
-                      image: pointIcon,
-                      scale: 0.5,
-                      color: "#2d8cf0",
-                      horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
-                      verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-                      clampToGround: true
-                    },
-                    attr: { remark: item.properties.name },
-                    popup: item.properties.name
-                  });
-                  graphicLayer1.addGraphic(graphic);
-                } else if (item.geometry.type == "LineString") {
-                  const graphic = new mars3d.graphic.CorridorEntity({
-                    positions: item.geometry.coordinates,
-                    style: {
-                      // width: item.properties.strokeWidth,
-                      width: 30,
-                      color: item.properties.stroke
-                    },
-                    attr: { remark: item.properties.name },
-                    popup: item.properties.name
-                  });
-                  graphicLayer1.addGraphic(graphic);
-                } else if (item.geometry.type == "Polygon") {
-                  const graphic = new mars3d.graphic.PolygonEntity({
-                    positions: item.geometry.coordinates,
-                    style: {
-                      color: item.properties.fill,
-                      opacity: 0.5
-                    },
-                    attr: { remark: item.properties.name },
-                    popup: item.properties.name
-                  });
-                  graphicLayer1.addGraphic(graphic);
-                }
-              }
-            });
-          }, 500);
-        });
       // 航线  "/public/line/川沙机场/川沙航线/*.kmz"
       let modulesFiles;
       let modules = [];
@@ -2905,6 +2946,59 @@ export default {
       state.value.subSelectedKey = tempItem.key;
       state.value.contentSelectedId = 0;
       state.value.contentSelectedIndex = 0;
+      // 点击监管对象，显示所有监管对象
+      graphicLayer1.clear();
+      graphicLayer2.clear();
+      // graphicLayer1
+
+      if (tempItem.key == "2-1") {
+        menuList.value[1].children[0].children.forEach(item => {
+          if (item.fileAddress != null && item.fileAddress != "") {
+            let fileUrl = new URL(item.fileAddress, import.meta.url).href;
+            // showPlaneInfo(fileUrl);
+            // 仅显示所有点
+            fetch(fileUrl)
+              .then(response => response.text())
+              .then(data => {
+                // 在这里处理文件内容
+                const anystr: any = data;
+                // console.log("anystr:111", anystr);
+
+                // 转xml
+                const xml = new DOMParser().parseFromString(anystr, "text/xml");
+                // console.log("kml:xml", xml);
+                newselect = true;
+
+                setTimeout(() => {
+                  toGeoJSON(xml).then(geojson => {
+                    // console.log("geojson", geojson);
+
+                    for (let i = 0; i < geojson.features.length; i++) {
+                      let item = geojson.features[i];
+                      if (item.geometry.type == "Point") {
+                        const graphic = new mars3d.graphic.BillboardEntity({
+                          name: item.properties.name,
+                          position: item.geometry.coordinates,
+                          style: {
+                            image: pointIcon,
+                            scale: 0.5,
+                            color: "#2d8cf0",
+                            horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+                            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+                            clampToGround: true
+                          },
+                          attr: { remark: item.properties.name },
+                          popup: item.properties.name
+                        });
+                        graphicLayer1.addGraphic(graphic);
+                      }
+                    }
+                  });
+                }, 500);
+              });
+          }
+        });
+      }
     };
 
     const clickContentItem = (tempItem, index) => {
@@ -3105,6 +3199,76 @@ export default {
           // });
         }
       }
+    };
+
+    const showPlaneInfo = fileUrl => {
+      fetch(fileUrl)
+        .then(response => response.text())
+        .then(data => {
+          // 在这里处理文件内容
+          const anystr: any = data;
+          // console.log("anystr:111", anystr);
+
+          // 转xml
+          const xml = new DOMParser().parseFromString(anystr, "text/xml");
+          // console.log("kml:xml", xml);
+          // // 新建的文件夹名称
+          // const filename =
+          //   xml.querySelector("Folder > name")?.textContent ??
+          //   xml.querySelector("name").textContent;
+          // console.log(xml);
+          newselect = true;
+
+          setTimeout(() => {
+            toGeoJSON(xml).then(geojson => {
+              // console.log("geojson", geojson);
+
+              for (let i = 0; i < geojson.features.length; i++) {
+                let item = geojson.features[i];
+                if (item.geometry.type == "Point") {
+                  const graphic = new mars3d.graphic.BillboardEntity({
+                    name: item.properties.name,
+                    position: item.geometry.coordinates,
+                    style: {
+                      image: pointIcon,
+                      scale: 0.5,
+                      color: "#2d8cf0",
+                      horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+                      verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+                      clampToGround: true
+                    },
+                    attr: { remark: item.properties.name },
+                    popup: item.properties.name
+                  });
+                  graphicLayer1.addGraphic(graphic);
+                } else if (item.geometry.type == "LineString") {
+                  const graphic = new mars3d.graphic.CorridorEntity({
+                    positions: item.geometry.coordinates,
+                    style: {
+                      // width: item.properties.strokeWidth,
+                      width: 30,
+                      color: item.properties.stroke
+                    },
+                    attr: { remark: item.properties.name },
+                    popup: item.properties.name
+                  });
+                  graphicLayer1.addGraphic(graphic);
+                } else if (item.geometry.type == "Polygon") {
+                  const graphic = new mars3d.graphic.PolygonEntity({
+                    positions: item.geometry.coordinates,
+                    style: {
+                      color: item.properties.fill,
+                      opacity: 0.5
+                    },
+                    attr: { remark: item.properties.name },
+                    popup: item.properties.name
+                  });
+                  graphicLayer1.addGraphic(graphic);
+                }
+              }
+            });
+          }, 500);
+        });
     };
 
     onMounted(async function() {
